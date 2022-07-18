@@ -1,6 +1,7 @@
 defmodule GenHandler do
-  @callback run(any()) :: any()
-  @callback handle_response(any()) :: any()
+  @callback run(any(), any()) :: any()
+  @callback handle_response(any(), any()) :: any()
+  @callback handle_failure(any(), any()) :: any()
 
   defmacro __using__(_) do
     quote unquote: false do
@@ -12,16 +13,16 @@ defmodule GenHandler do
         unquote(event)
       end
 
-      def run_handler(payload) do
-        {unquote(event), run(payload)}
+      def run_handler(payload, state) do
+        {unquote(event), run(payload, state)}
       rescue
         e ->
-          handle_failure(e)
+          handle_failure(e, state)
       end
 
-      def handle_failure(failure), do: failure
-      def handle_response(response), do: response
-      defoverridable handle_response: 1, handle_failure: 1
+      def handle_failure(failure, _state), do: failure
+      def handle_response(response, _state), do: response
+      defoverridable handle_response: 2, handle_failure: 2
     end
   end
 end

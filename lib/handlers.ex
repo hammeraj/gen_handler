@@ -16,6 +16,8 @@ defmodule GenHandler.Handlers do
         IO.inspect("Task failed")
         {:noreply, state}
       end
+
+      defoverrideable start_link: 1, init: 1
     end
   end
 
@@ -24,13 +26,13 @@ defmodule GenHandler.Handlers do
       event = module.event
 
       def handle_cast({unquote(event), payload}, state) do
-        Task.Supervisor.async_nolink(GenHandler.TaskSupervisor, unquote(module), :run_handler, [payload])
+        Task.Supervisor.async_nolink(GenHandler.TaskSupervisor, unquote(module), :run_handler, [payload, state])
         {:noreply, state}
       end
 
       def handle_info({ref, {unquote(event), response}}, state) do
         Process.demonitor(ref, [:flush])
-        unquote(module).handle_response(response)
+        unquote(module).handle_response(response, state)
         {:noreply, state}
       end
     end
@@ -41,7 +43,9 @@ defmodule GenHandler.Handlers do
       event = module.event
 
       def handle_call({unquote(event), payload}, _from, state) do
-        {:reply, unquote(module).run(payload), state}
+        response = unquote(module).run(payload, state)
+        unquote(module).handle_response(response, state)
+        {:reply, results, state}
       end
     end
   end
@@ -62,13 +66,13 @@ defmodule GenHandler.Handlers do
           end
 
           def handle_cast({unquote(event), payload}, state) do
-            Task.Supervisor.async_nolink(GenHandler.TaskSupervisor, unquote(module), :run_handler, [payload])
+            Task.Supervisor.async_nolink(GenHandler.TaskSupervisor, unquote(module), :run_handler, [payload, state])
             {:noreply, state}
           end
 
           def handle_info({ref, {unquote(event), response}}, state) do
             Process.demonitor(ref, [:flush])
-            handled_response = unquote(module).handle_response(response)
+            handled_response = unquote(module).handle_response(response, state)
             if unquote(next_event), do: GenServer.cast(__MODULE__, {unquote(next_event), handled_response})
             {:noreply, state}
           end
